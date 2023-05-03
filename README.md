@@ -14,7 +14,7 @@ This is a Telegram bot that can find and send YouTube videos based on English wo
 1. Clone this repository:
 
 ```shell
-git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
+git clone https://github.com/AndreyKlychnikov/language-telegram-bot.git
 ```
 
 2. Install the required packages:
@@ -30,7 +30,7 @@ poetry install
 4. Run the bot:
 ```shell
 poetry shell
-python bot.py
+python main.py
 ```
 
 
@@ -46,5 +46,5 @@ If you find any bugs or issues with the bot, or if you have suggestions for new 
 
 ## License
 
-This bot is released under the CC BY-NC license. See the `LICENSE` file for more information.
+This bot is released under the CC BY-NC license. See the [LICENSE](LICENSE) file for more information.
 
