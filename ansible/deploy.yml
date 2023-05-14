@@ -1,0 +1,23 @@
+- hosts: stage
+  gather_facts: no
+  tasks:
+    - include: tasks/docker_login.yml
+
+    - name: Pull the new image
+      docker_image:
+        name: "{{ docker_image }}:{{app_image_version}}"
+        source: pull
+      register: pulled_image
+
+    - name: Remove the existing container
+      docker_container:
+        name: telegram-bot
+        state: absent
+
+    - name: Run the container with the new image
+      docker_container:
+        name: telegram-bot
+        image: "{{ docker_image }}:{{app_image_version}}"
+        env:
+          TELEGRAM_TOKEN: {{ telegram_token }}
+          VIDEOS_API_HOST: {{ videos_api_host }}
