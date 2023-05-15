@@ -31,7 +31,7 @@ def aggregate_definitions(data, meanings_limit: int = 3):
     for phonetic in data:
         phonetic_group = phonetic.get("phonetic", "")
         for audio in phonetic["phonetics"]:
-            if audio:
+            if audio["audio"]:
                 phonetic_groups_audio[phonetic_group].append(audio["audio"])
 
         for meaning in phonetic["meanings"]:
