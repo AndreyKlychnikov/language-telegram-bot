@@ -47,6 +47,8 @@ def aggregate_definitions(data, meanings_limit: int = 3):
         for audio in phonetic["phonetics"]:
             if audio["audio"]:
                 phonetic_groups_audio[phonetic_group].append(audio["audio"])
+        if phonetic_group not in phonetic_groups_audio:
+            phonetic_groups_audio[phonetic_group] = []
 
         for meaning in phonetic["meanings"]:
             phonetic_groups_definition[phonetic_group][meaning["partOfSpeech"]].extend(
@@ -60,7 +62,10 @@ def aggregate_definitions(data, meanings_limit: int = 3):
             meanings[part_of_speech] = [meaning["definition"] for meaning in meanings_][
                 :meanings_limit
             ]
-        out.append({"audio": audios[0], "meanings": meanings})
+        audio = None
+        if audios:
+            audio = audios[0]
+        out.append({"audio": audio, "meanings": meanings})
     return out
 
 
@@ -115,12 +120,24 @@ async def handle_message(message: types.Message):
         parse_mode=ParseMode.MARKDOWN,
     )
     for definition in data["definitions"]:
-        await bot.send_audio(
-            chat_id=message.chat.id,
-            audio=definition["audio"],
-            caption=message_template.render({**definition, "word": message.text}),
-            parse_mode=ParseMode.HTML,
+        definition_message = message_template.render(
+            {**definition, "word": message.text}
         )
+        if definition["audio"]:
+            await bot.send_audio(
+                chat_id=message.chat.id,
+                audio=definition["audio"],
+                caption=definition_message,
+                parse_mode=ParseMode.HTML,
+                disable_notification=True,
+            )
+        else:
+            await bot.send_message(
+                chat_id=message.chat.id,
+                text=definition_message,
+                parse_mode=ParseMode.HTML,
+                disable_notification=True,
+            )
 
 
 # Start the bot
