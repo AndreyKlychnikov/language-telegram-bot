@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import random
 import re
 from collections import defaultdict
 
@@ -33,7 +34,9 @@ async def get_video(q, lang="en") -> dict:
         logger.info("Get videos %s", url)
         async with session.get(url) as resp:
             videos = await resp.json()
-            return {"video_url": videos[0]["url"], "caption_text": videos[0]["text"]}
+            fragment_idx = random.randint(0, len(videos) - 1)
+            video = videos[fragment_idx]
+            return {"video_url": video["url"], "caption_text": video["text"]}
 
 
 def aggregate_definitions(data, meanings_limit: int = 3):
