@@ -1,0 +1,11 @@
+Word: <b>{{ word }}</b>
+
+{% for part_of_speech, definitions in meanings.items() %}
+<b>{{ part_of_speech.capitalize() }}:</b>
+{% for definition in definitions %}
+• Definition: {{ definition }}
+{% endfor %}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}

@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import os
+import re
 from collections import defaultdict
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ParseMode
 from aiogram.utils import executor
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -15,14 +17,23 @@ logger = logging.getLogger(__name__)
 VIDEOS_API_HOST = os.getenv("VIDEOS_API_HOST")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
+env = Environment(
+    loader=PackageLoader("app", "templates"),
+    autoescape=select_autoescape(["html", "xml", "j2"]),
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
+message_template = env.get_template("definition_message.j2")
+video_template = env.get_template("video_message.j2")
 
-async def get_video(q, lang="en") -> str:
+
+async def get_video(q, lang="en") -> dict:
     async with aiohttp.ClientSession() as session:
         url = f"{VIDEOS_API_HOST}/api/v1/videos/?q={q}&lang={lang}"
         logger.info("Get videos %s", url)
         async with session.get(url) as resp:
             videos = await resp.json()
-            return videos[0]["url"]
+            return {"video_url": videos[0]["url"], "caption_text": videos[0]["text"]}
 
 
 def aggregate_definitions(data, meanings_limit: int = 3):
@@ -41,16 +52,12 @@ def aggregate_definitions(data, meanings_limit: int = 3):
 
     out = []
     for phonetic, audios in phonetic_groups_audio.items():
-        meanings = []
+        meanings = {}
         for part_of_speech, meanings_ in phonetic_groups_definition[phonetic].items():
-            for meaning in meanings_:
-                meanings.append(
-                    {
-                        "part_of_speech": part_of_speech,
-                        "definition": meaning["definition"],
-                    }
-                )
-        out.append({"audio": audios[0], "meanings": meanings[:meanings_limit]})
+            meanings[part_of_speech] = [meaning["definition"] for meaning in meanings_][
+                :meanings_limit
+            ]
+        out.append({"audio": audios[0], "meanings": meanings})
     return out
 
 
@@ -63,10 +70,10 @@ async def get_audio_and_definition(word):
 
 
 async def get_word_data(word):
-    video_url, definitions = await asyncio.gather(
+    video_data, definitions = await asyncio.gather(
         get_video(word), get_audio_and_definition(word)
     )
-    return {"video_url": video_url, "definitions": definitions}
+    return {**video_data, "definitions": definitions}
 
 
 # Create a bot object and set up a dispatcher
@@ -82,6 +89,11 @@ async def start_command(message: types.Message):
     )
 
 
+def highlight_text(text, highlighting_text) -> str:
+    highlighting_text = highlighting_text.strip()
+    return str(re.sub(highlighting_text, f"*{highlighting_text}*", text, flags=re.I))
+
+
 # Define a function to handle messages
 @dp.message_handler()
 async def handle_message(message: types.Message):
@@ -89,29 +101,23 @@ async def handle_message(message: types.Message):
     logger.info("Word: '%s' founded video: %s", message.text, data["video_url"])
     await bot.send_message(
         chat_id=message.chat.id,
-        text=data["video_url"],
+        text=video_template.render(
+            {
+                **data,
+                "word": message.text,
+                "caption_text": highlight_text(data["caption_text"], message.text),
+            }
+        ),
         disable_web_page_preview=False,
-        parse_mode=ParseMode.HTML,
+        parse_mode=ParseMode.MARKDOWN,
     )
-    sent_audios = set()
     for definition in data["definitions"]:
-        text = [
-            (
-                f"{meaning['part_of_speech'].capitalize()}\n"
-                f"Definition:\n{meaning['definition']}"
-            )
-            for meaning in definition["meanings"]
-        ]
-
-        await bot.send_message(
+        await bot.send_audio(
             chat_id=message.chat.id,
-            text="\n\n".join(text),
-            disable_web_page_preview=False,
+            audio=definition["audio"],
+            caption=message_template.render({**definition, "word": message.text}),
             parse_mode=ParseMode.HTML,
         )
-        if definition["audio"] not in sent_audios:
-            await bot.send_audio(message.chat.id, audio=definition["audio"])
-            sent_audios.add(definition["audio"])
 
 
 # Start the bot

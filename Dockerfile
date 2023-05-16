@@ -12,6 +12,6 @@ FROM python:3.11-slim
 WORKDIR /code
 COPY --from=requirements-stage /tmp/requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
-COPY ./main.py /code/main.py
+COPY ./app /code/app
 ENV PYTHONPATH=/code
-CMD ["python", "main.py"]
+CMD ["python", "app/main.py"]
